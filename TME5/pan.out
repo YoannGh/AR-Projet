@@ -1,0 +1,5 @@
+spin -a  naimi_squel.pml
+ltl abs_famine: [] ((! ((node[1]@ask_SC))) || (<> ((node[1]@in_SC))))
+gcc -DMEMLIM=1024 -O2 -w -o pan pan.c
+
+

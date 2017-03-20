@@ -1,0 +1,11 @@
+never abs_famine {    /* !([] ((! ((node[1]@ask_SC))) || (<> ((node[1]@in_SC))))) */
+T0_init:
+	do
+	:: (! ((! ((node[1]@ask_SC)))) && ! (((node[1]@in_SC)))) -> goto accept_S4
+	:: (1) -> goto T0_init
+	od;
+accept_S4:
+	do
+	:: (! (((node[1]@in_SC)))) -> goto accept_S4
+	od;
+}
