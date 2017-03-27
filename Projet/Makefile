@@ -1,5 +1,5 @@
-CC = mpicc
-CFLAGS = -Wall -Wextra
+CC = mpicc 
+CFLAGS = -Wall -Wextra -std=c99
  
 SRC = $(wildcard *.c)
 OBJS = $(SRC:.c=.o)

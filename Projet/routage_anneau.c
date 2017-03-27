@@ -5,7 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define M 64
+#define M 128
 #define TAG_INIT 0
 #define TAG_ASK 1
 #define TAG_ANSWER 2
@@ -63,16 +63,57 @@ void generate_node_ids(int *tab, int nb_node)
 	printf("\n\n");
 }
 
+struct nodeIds {
+	int mpi_id;
+	int chord_id;
+};
+
+//TODO Refaire parser ligne commande
+
+int chordToMpi(struct nodeIds *correspond, int chord_id)
+{
+	for (int i = 0; i < M; ++i)
+	{
+		if(correspond[i].chord_id == chord_id)
+			return correspond[i].mpi_id;
+	}
+	return -1;
+}
+
+int removeChordID(struct nodeIds *correspond, int chord_id)
+{
+	int mpi_id = -1;
+	for (int i = 0; i < M; ++i)
+	{
+		if(correspond[i].chord_id == chord_id)
+		{
+			correspond[i].chord_id = -1;
+			mpi_id = correspond[i].mpi_id;
+			correspond[i].mpi_id = -1;
+			return mpi_id;
+		}
+	}
+	return -1;
+}
+
 void simulateur(int nb_node) 
 {
 	/*Generation des CHORD id */
 	int *tab = malloc(sizeof(int)*(nb_node));
 	int mpi_next, first_data, data[2];
 	generate_node_ids(tab, nb_node);
+	struct nodeIds correspond[M];
 	char input[16];
+	char command;
+	int identificator, origin_chord_id;
+
+	memset(correspond, -1, M*sizeof(struct nodeIds));
+
 
 	for (int i = 0; i < nb_node; ++i)
 	{
+		correspond[i].mpi_id = i+1;
+		correspond[i].chord_id = tab[i];
 		MPI_Send(&tab[i], 1, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
 		first_data = tab[PRECEDENT(i, nb_node)] + 1;
 		MPI_Send(&first_data, 1, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
@@ -80,6 +121,7 @@ void simulateur(int nb_node)
 		mpi_next = SUIVANT(i, nb_node) + 1;
 		MPI_Send(&mpi_next, 1, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
 	}
+
 	while(1)
 	{
 		fgets(input, 16, stdin);
@@ -91,15 +133,28 @@ void simulateur(int nb_node)
 		}
 		else if(input[0] == 's')
 		{
-			data[0] = atoi(&input[2]);
-			data[1] = atoi(&input[5]);
-			printf("Searching node %d from %d\n", data[0], data[1]);
-			MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+			sscanf(input, "%c %d %d", &command, &identificator, &origin_chord_id);
+			data[0] = identificator;
+			data[1] = chordToMpi(correspond, origin_chord_id);
+			if(data[1] == -1)
+				puts("Chord ID not found");
+			else
+			{
+				printf("Searching node %d from %d\n", data[0], data[1]);
+				MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+			}
 		}
-		else if(input[0] == 'd')
-			MPI_Send(&data, 1, MPI_INT, atoi(&input[2]), TAG_DISCONNECT, MPI_COMM_WORLD);
-		else if(input[0] == 'c')
+		else if(input[0] == 'd') {
+			sscanf(input, "%c %d", &command, &identificator);
+			if( (identificator = removeChordID(correspond, identificator)) != -1)
+				MPI_Send(&data, 1, MPI_INT, identificator, TAG_DISCONNECT, MPI_COMM_WORLD);
+			else
+				puts("Chord ID not found");
+
+		}
+		else if(input[0] == 'c') {
 			puts("TODO");
+		}
 		else
 			puts("Wrong input");
 		
