@@ -133,6 +133,22 @@ int removeChordID(struct nodeIds *correspond, int chord_ids)
 	return -1;
 }
 
+int addChordID(struct nodeIds *correspond, int mpi_id, int new_chord_id)
+{
+	for (int i = 0; i < correspond->nb_node; ++i)
+	{
+		if(correspond->mpi_ids[i] == mpi_id)
+		{
+			if(correspond->chord_ids[i] != -1)
+				return -1;
+
+			correspond->chord_ids[i] = new_chord_id;
+			return 0;
+		}
+	}
+	return -1;
+}
+
 int MPInotConnected(struct nodeIds *correspond, int mpi_ids)
 {
 	for (int i = 0; i < correspond->nb_node; ++i)
@@ -210,10 +226,7 @@ void simulateur(int nb_node)
 			if(data[1] == -1)
 				puts("Chord ID not found");
 			else
-			{
-				printf("Searching node %d from %d\n", data[0], data[1]);
 				MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-			}
 		}
 		else if(input[0] == 'd') {
 			sscanf(input, "%c %d", &command, &identificator);
@@ -228,7 +241,14 @@ void simulateur(int nb_node)
 			sscanf(input, "%c %d", &command, &identificator);
 			data[0] = getUniqueId(correspond.chord_ids, nb_node); // Nouveau CHORD ID du nouveau pair
 			data[1] = identificator; // Le Rank MPI du pair se connectant
-			MPI_Send(&data, 2, MPI_INT, getRandomMPIOfConnectedPeer(&correspond), TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
+
+			if(addChordID(&correspond, data[1], data[0]) == 0)
+			{
+				printf("New chord_id[%d] mpi_rank[%d] connecting ...\n", data[0], data[1]);
+				MPI_Send(&data, 2, MPI_INT, getRandomMPIOfConnectedPeer(&correspond), TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
+			}
+			else
+				puts("Wrong MPI_rank given (already connected or non-existing");
 		}
 		else if(input[0] == 'p')
 		{
@@ -311,41 +331,44 @@ void disconnect(MPI_Status status, int *chord_ids, int *first_data, int *chord_n
 	}
 }
 
-void connect_notify_predessessor(MPI_Status status, int *chord_id, int *first_data, int *chord_next_node, int *mpi_next_node)
+void connect_notify_predessessor(MPI_Status status, int *chord_id, int *chord_next_node, int *mpi_next_node)
 {
 	int to_recv[4], to_send[4];
-	MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+	MPI_Recv(&to_recv, 4, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
 	if(*chord_next_node == to_recv[2])
 	{
-		printf("chord_id[%d]: new chord_next_node:[%d]\n", chord_id, to_recv[2]]);
+		*mpi_next_node = to_recv[1];
+		*chord_next_node = to_recv[0];
+
+		printf("chord_id[%d]: new chord_next_node:[%d], mpi_next_node[%d]\n", *chord_id, *chord_next_node, *mpi_next_node);
 
 		//Envoie des inforation au nouveau pair
-		to_send[0] = to_recv[0]; // Nouveau CHORD ID du nouveau pair
-		to_send[1] = to_recv[3]; // mpi_next_node
-		to_send[2] = to_recv[2]; // chord_next_node
-		to_send[3] = (*chord_id) + 1; 	 // first_data
-		MPI_Send(&to_send, 3, MPI_INT, to_recv[1], TAG_CONNECTED_ACK, MPI_COMM_WORLD);		
+		to_send[0] = to_recv[0];	  // Nouveau CHORD ID du nouveau pair
+		to_send[1] = to_recv[3];	  // mpi_next_node
+		to_send[2] = to_recv[2]; 	  // chord_next_node
+		to_send[3] = (*chord_id) + 1; // first_data
+		MPI_Send(&to_send, 4, MPI_INT, to_recv[1], TAG_CONNECTED_ACK, MPI_COMM_WORLD);		
 	}
 	else
-		MPI_Send(&to_recv, 4, MPI_INT, *mpi_next_node, TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
+		MPI_Send(&to_recv, 4, MPI_INT, *mpi_next_node, TAG_CONNECTED_NOTIFY_PREDESSESSOR, MPI_COMM_WORLD);
 }
 
-void connect_notify_successor(MPI_Status status, int *chord_id, int rank, int *first_data, int *chord_next_node, int *mpi_next_node)
+void connect_notify_successor(MPI_Status status, int *chord_id, int rank, int *first_data, int *mpi_next_node)
 {
 	int to_recv[2], to_send[4];
 	MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-	if(checkData(chord_ids, first_data, to_recv[0]))
+	if(checkData(*chord_id, *first_data, to_recv[0]))
 	{
-		printf("chord_id[%d]: rangeDown for me cause of new_chord_ids[%d]\n", chord_id, to_recv[0]]);
+		*first_data = SUIVANT(to_recv[0],M);
+		printf("chord_id[%d]: rangeDown because of new_chord_id[%d], new first_data: %d\n", *chord_id, to_recv[0], *first_data);
 
-		first_data = SUIVANT(to_recv[0]+1, M);
 
 		//Envoie des inforation a l'anneau à la recherche du predecesseur
 		to_send[0] = to_recv[0]; // Nouveau CHORD ID du nouveau pair
 		to_send[1] = to_recv[1]; // Le Rank MPI du pair se connectant
-		to_send[2] = chord_id; 	 // Le CHORD ID du successeur du nouveau pair
+		to_send[2] = *chord_id;	 // Le CHORD ID du successeur du nouveau pair
 		to_send[3] = rank; 		 // Le MPI ID du sucesseur du nouveau pair
-		MPI_Send(&to_send, 3, MPI_INT, *mpi_next_node, TAG_CONNECTED_NOTIFY_PREDESSESSOR, MPI_COMM_WORLD);		
+		MPI_Send(&to_send, 4, MPI_INT, *mpi_next_node, TAG_CONNECTED_NOTIFY_PREDESSESSOR, MPI_COMM_WORLD);		
 	}
 	else
 		MPI_Send(&to_recv, 2, MPI_INT, *mpi_next_node, TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
@@ -373,6 +396,9 @@ void node(int rank)
 		{
 			case TAG_ASK:
 				MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+				if(status.MPI_SOURCE == 0)
+					printf("Searching node %d from %d\n", to_recv[0], chord_ids);
+
 				if(checkData(chord_ids, first_data, to_recv[0]))
 				{
 					to_send[0] = to_recv[0];
@@ -398,19 +424,20 @@ void node(int rank)
 					chord_ids = -1;
 				break;
 			case TAG_CONNECTED_NOTIFY_SUCCESSOR:	
-				connect_notify_successor(status, &chord_ids, rank, &first_data, &chord_next_node, &mpi_next_node);
+				connect_notify_successor(status, &chord_ids, rank, &first_data, &mpi_next_node);
 				break;
 
 			case TAG_CONNECTED_NOTIFY_PREDESSESSOR:	
-				connect_notify_predessessor(status, &chord_ids, &first_data, &chord_next_node, &mpi_next_node);
+				connect_notify_predessessor(status, &chord_ids, &chord_next_node, &mpi_next_node);
 				break;
 
 			case TAG_CONNECTED_ACK:	
 				MPI_Recv(&to_recv, 4, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
 				chord_ids = to_recv[0]; // Nouveau CHORD ID du nouveau pair
-				mpi_next_node = to_recv[1]: // mpi_next_node
-				chord_next_node = to_recv[2]: // chord_next_node
+				mpi_next_node = to_recv[1]; // mpi_next_node
+				chord_next_node = to_recv[2]; // chord_next_node
 				first_data = to_recv[3]; 	 // first_data
+				printf("chord_id[%d] mpi_rank[%d] properly connected ! mpi_next_node = %d, chord_next_node = %d, first_data = %d\n", chord_ids, rank, mpi_next_node, chord_next_node, first_data);
 				break;
 
 			case TAG_STOP:
