@@ -5,7 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define M 64
+#include "common.h"
+
 #define TAG_INIT 0
 #define TAG_ASK 1
 #define TAG_ANSWER 2
@@ -16,175 +17,16 @@
 #define TAG_CONNECTED_ACK 7
 #define TAG_STOP 8
 
-#define PRECEDENT(i, count) ((i+(count)-1)%(count))
-#define SUIVANT(i, count) ((i+(count)+1)%(count))
-
-
-struct nodeIds {
-	int *mpi_ids;
-	int *chord_ids;
-	int nb_node;
-};
-
-/* CODE DU SIMULATEUR */
-
 /*
-	Fonction pour quicksort sur un tableau d'entier
+	Code du simulateur (MPI ID = 0)
 */
-static int cmpint(const void *a, const void *b)
-{
-	if(*(int*)a > *(int*)b)
-		return 1;
-	if(*(int*)a < *(int*)b)
-		return -1;
-	return 0;
-}
-
-
-/*
-	Vérifie si un entier to_ckeck est présent dans un tableau d'entier
-	return: 1 s'il est présent, 0 sinon
-*/
-int array_contains(const int *tab, const int tab_size, const int to_ckeck)
-{
-	for (int i = 0; i < tab_size; ++i)
-	{
-		if(tab[i] == to_ckeck)
-			return 1;
-	}
-	return 0;
-}
-
-int getUniqueId(int *tab, int size)
-{
-	int random;
-	do
-	{
-		random = rand()%M;
-	}
-	while(array_contains(tab, size, random));
-	return random;
-}
-
-/*
-	Génération des clés CHORD dans l'ensemble [0;M[, 
-	les clés sont tirées aléatoirement et de manière unique 
-*/
-void generate_node_ids(int *tab, int nb_node)
-{
-	srand(time(NULL));
-	for (int i = 0; i<nb_node; ++i)
-	{
-		tab[i] = getUniqueId(tab, nb_node);
-	}
-
-	qsort(tab, nb_node, sizeof(int),cmpint);
-	printf("[%d |", tab[0]);
-	for(int i = 1; i < nb_node-1; i++)
-	{
-		printf(" %d |", tab[i]);
-	}
-	printf(" %d]", tab[nb_node-1]);
-	printf("\n\n");
-}
-
-
-void printRing(struct nodeIds *correspond)
-{
-	printf("[ | ");
-	for(int i = 0; i < correspond->nb_node; i++)
-	{
-		if(correspond->chord_ids[i] != -1)
-			printf("%d | ", correspond->chord_ids[i]);
-	}
-	printf("]\n");
-}
-
-/*
-	Correspondance entre une clé CHORD (chord_ids) et un identifiant MPI
-	return: l'identifiant MPI de la clé CHORD, 
-			ou -1 si la clé n'existe pas
-*/
-int chordToMpi(struct nodeIds *correspond, int chord_ids)
-{
-	for (int i = 0; i < correspond->nb_node; ++i)
-	{
-		if(correspond->chord_ids[i] == chord_ids)
-			return correspond->mpi_ids[i];
-	}
-	return -1;
-}
-
-/*
-	Retire correspondance entre une clé CHORD (chord_ids) et un identifiant MPI
-	return: l'identifiant MPI de la clé CHORD retirée, 
-			ou -1 si la clé n'existe pas
-*/
-int removeChordID(struct nodeIds *correspond, int chord_ids)
-{
-	for (int i = 0; i < correspond->nb_node; ++i)
-	{
-		if(correspond->chord_ids[i] == chord_ids)
-		{
-			correspond->chord_ids[i] = -1;
-			return correspond->mpi_ids[i];
-		}
-	}
-	return -1;
-}
-
-int addChordID(struct nodeIds *correspond, int mpi_id, int new_chord_id)
-{
-	for (int i = 0; i < correspond->nb_node; ++i)
-	{
-		if(correspond->mpi_ids[i] == mpi_id)
-		{
-			if(correspond->chord_ids[i] != -1)
-				return -1;
-
-			correspond->chord_ids[i] = new_chord_id;
-			return 0;
-		}
-	}
-	return -1;
-}
-
-int MPInotConnected(struct nodeIds *correspond, int mpi_ids)
-{
-	for (int i = 0; i < correspond->nb_node; ++i)
-	{
-		if(correspond->mpi_ids[i] == mpi_ids)
-		{	
-			if(correspond->chord_ids[i] == -1)
-				return 1;
-			else
-				return 0;
-		}
-	}
-	return 0;
-}
-
-
-
-int getRandomMPIOfConnectedPeer(struct nodeIds *correspond)
-{
-	int random;
-	//On cherche un processus MPI deja connecté en tant que pair
-	do
-	{
-		random = rand()%correspond->nb_node;
-	}
-	while(correspond->chord_ids[random] == -1);
-
-	return correspond->mpi_ids[random]; 
-}
 
 void simulateur(int nb_node) 
 {
 	/*Generation des CHORD id */
 	//int *tab = malloc(sizeof(int)*(nb_node));
 	int mpi_next, first_data, data[2];
-	struct nodeIds correspond;
+	struct nodeIDs correspond;
 	char input[16];
 	char command;
 	int identificator, origin_chord_ids;
@@ -197,6 +39,7 @@ void simulateur(int nb_node)
 	memset(correspond.chord_ids, -1, sizeof(int)*(nb_node));
 
 	generate_node_ids(correspond.chord_ids, nb_node);
+	printRing(&correspond);
 
 	for (int i = 0; i < nb_node; ++i)
 	{
@@ -290,21 +133,21 @@ void simulateur(int nb_node)
 /* FIN CODE DU SIMULATEUR */
 
 /* CODE DES NOEUDS */
-int checkData(const int chord_ids, const int first_data, const int to_check)
+int checkData(const int chord_id, const int first_data, const int to_check)
 {
-	if (chord_ids >= first_data)
-		return (to_check <= chord_ids && to_check >= first_data);
+	if (chord_id >= first_data)
+		return (to_check <= chord_id && to_check >= first_data);
 	else
-		return (to_check >= first_data || to_check <= chord_ids);
+		return (to_check >= first_data || to_check <= chord_id);
 }
 
-void disconnect(MPI_Status status, int *chord_ids, int *first_data, int *chord_next_node, int *mpi_next_node)
+void disconnect(MPI_Status status, int chord_id, int *first_data, int *chord_next_node, int *mpi_next_node)
 {
 	int to_recv[4], to_send[4];
 	if(status.MPI_SOURCE == 0) //Si c'est proc maitre qui nous demande de nous deconnecter
 	{
 		MPI_Recv(&to_recv, 1, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-		to_send[0] = *chord_ids;
+		to_send[0] = chord_id;
 		to_send[1] = *first_data;
 		to_send[2] = *chord_next_node;
 		to_send[3] = *mpi_next_node;
@@ -377,17 +220,17 @@ void connect_notify_successor(MPI_Status status, int *chord_id, int rank, int *f
 
 void node(int rank) 
 {
-	int chord_ids, first_data, chord_next_node, mpi_next_node;
+	int chord_id, first_data, chord_next_node, mpi_next_node;
 	int to_recv[4], to_send[4];
 	int run = 1;
 	MPI_Status status;
 
-	MPI_Recv(&chord_ids, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
+	MPI_Recv(&chord_id, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
 	MPI_Recv(&first_data, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
 	MPI_Recv(&chord_next_node, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
 	MPI_Recv(&mpi_next_node, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
 
-	printf("chord_ids[%d] mpi_rank[%d] first_data: %d chord_next_node: %d mpi_next_node: %d\n", chord_ids, rank, first_data, chord_next_node, mpi_next_node);
+	printf("chord_id[%d] mpi_rank[%d] first_data: %d chord_next_node: %d mpi_next_node: %d\n", chord_id, rank, first_data, chord_next_node, mpi_next_node);
 
 	while(run)
 	{
@@ -397,12 +240,12 @@ void node(int rank)
 			case TAG_ASK:
 				MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
 				if(status.MPI_SOURCE == 0)
-					printf("Searching node %d from %d\n", to_recv[0], chord_ids);
+					printf("Searching node %d from %d\n", to_recv[0], chord_id);
 
-				if(checkData(chord_ids, first_data, to_recv[0]))
+				if(checkData(chord_id, first_data, to_recv[0]))
 				{
 					to_send[0] = to_recv[0];
-					to_send[1] = chord_ids;
+					to_send[1] = chord_id;
 					MPI_Send(&to_send, 2, MPI_INT, to_recv[1], TAG_ANSWER, MPI_COMM_WORLD);
 				}
 				else
@@ -411,33 +254,33 @@ void node(int rank)
 
 			case TAG_ANSWER:
 					MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-					printf("chord_ids[%d]: requested data %d is handled by %d\n", chord_ids, to_recv[0], to_recv[1]);
+					printf("chord_id[%d]: requested data %d is handled by %d\n", chord_id, to_recv[0], to_recv[1]);
 				break;
 
 			case TAG_DISCONNECT:
-				disconnect(status, &chord_ids, &first_data, &chord_next_node, &mpi_next_node);
+				disconnect(status, chord_id, &first_data, &chord_next_node, &mpi_next_node);
 				break;
 
 			case TAG_DISCONNECT_ACK:
 					MPI_Recv(&to_recv, 1, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-					printf("old_chord_ids[%d] mpi_rank[%d] properly disconnected\n", chord_ids, rank);
-					chord_ids = -1;
+					printf("old_chord_id[%d] mpi_rank[%d] properly disconnected\n", chord_id, rank);
+					chord_id = -1;
 				break;
 			case TAG_CONNECTED_NOTIFY_SUCCESSOR:	
-				connect_notify_successor(status, &chord_ids, rank, &first_data, &mpi_next_node);
+				connect_notify_successor(status, &chord_id, rank, &first_data, &mpi_next_node);
 				break;
 
 			case TAG_CONNECTED_NOTIFY_PREDESSESSOR:	
-				connect_notify_predessessor(status, &chord_ids, &chord_next_node, &mpi_next_node);
+				connect_notify_predessessor(status, &chord_id, &chord_next_node, &mpi_next_node);
 				break;
 
 			case TAG_CONNECTED_ACK:	
 				MPI_Recv(&to_recv, 4, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-				chord_ids = to_recv[0]; // Nouveau CHORD ID du nouveau pair
+				chord_id = to_recv[0]; // Nouveau CHORD ID du nouveau pair
 				mpi_next_node = to_recv[1]; // mpi_next_node
 				chord_next_node = to_recv[2]; // chord_next_node
 				first_data = to_recv[3]; 	 // first_data
-				printf("chord_id[%d] mpi_rank[%d] properly connected ! mpi_next_node = %d, chord_next_node = %d, first_data = %d\n", chord_ids, rank, mpi_next_node, chord_next_node, first_data);
+				printf("chord_id[%d] mpi_rank[%d] properly connected ! mpi_next_node = %d, chord_next_node = %d, first_data = %d\n", chord_id, rank, mpi_next_node, chord_next_node, first_data);
 				break;
 
 			case TAG_STOP:
@@ -448,16 +291,14 @@ void node(int rank)
 				printf("Error, tag unknown: %d\n", status.MPI_TAG);
 		}
 	}
-	printf("chord_ids[%d]/mpi_rank[%d] Killed\n", chord_ids, rank);
+	printf("chord_id[%d]/mpi_rank[%d] Killed\n", chord_id, rank);
 }
 
 /* FIN CODE DES NOEUDS */
 
-
-
 int main (int argc, char* argv[]) {
 
-   int nb_proc,rang;
+   int nb_proc, rank;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &nb_proc);
 
@@ -467,12 +308,12 @@ int main (int argc, char* argv[]) {
       exit(2);
    }
   
-   MPI_Comm_rank(MPI_COMM_WORLD, &rang);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   
-   if (rang == 0) {
+   if (rank == 0) {
       simulateur(nb_proc-1);
    } else {
-      node(rang);
+      node(rank);
    }
   
    MPI_Finalize();

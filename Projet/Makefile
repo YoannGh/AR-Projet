@@ -1,21 +1,43 @@
-CC = mpicc 
-CFLAGS = -Wall -Wextra -std=c99
- 
-SRC = $(wildcard *.c)
-OBJS = $(SRC:.c=.o)
-PROGRAM_NAME = routage_anneau
- 
-all : $(PROGRAM_NAME) 
- 
-prog : $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
-%.o : %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+CC       = mpicc
+# compiling flags here
+CFLAGS   = -Wall -Wextra -std=c99
 
- #Usage make run ARGS=5
+LINKER   = mpicc
+# linking flags here
+LFLAGS   = 
+
+# change these to proper directories where each file should be
+SRCDIR   = .
+OBJDIR   = .
+BINDIR   = .
+
+EXO1_PROGRAM_NAME = routage_anneau
+EXO2_PROGRAM_NAME = chord_fingertables
+
+SOURCES  := $(wildcard $(SRCDIR)/*.c)
+INCLUDES := $(wildcard $(SRCDIR)/*.h)
+OBJECTS  := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+rm       = rm -f
+
+all: $(BINDIR)/$(EXO1_PROGRAM_NAME) $(BINDIR)/$(EXO2_PROGRAM_NAME) 
+
+$(BINDIR)/$(EXO1_PROGRAM_NAME): $(OBJDIR)/common.o $(OBJDIR)/$(EXO1_PROGRAM_NAME).o
+	$(LINKER) $(LFLAGS) -o $@ $^
+
+$(BINDIR)/$(EXO2_PROGRAM_NAME): $(OBJDIR)/common.o $(OBJDIR)/$(EXO2_PROGRAM_NAME).o
+	$(LINKER) $(LDFLAGS) -o $@ $^
+
+$(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.c
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 run :
-	@make && mpirun -np $(ARGS) $(PROGRAM_NAME)
+	@make && mpirun -np $(ARGS) $(EXO1_PROGRAM_NAME)
 
-clean : 
-	@rm $(PROGRAM_NAME)
-	@rm *.o
+.PHONY: clean
+clean:
+	@$(rm) $(OBJECTS)
+
+.PHONY: remove
+remove: clean
+	@$(rm) $(BINDIR)/$(EXO1_PROGRAM_NAME)
+	@$(rm) $(BINDIR)/$(EXO2_PROGRAM_NAME)
