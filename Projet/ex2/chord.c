@@ -171,7 +171,6 @@ void simulateur(int nb_nodes)
 		to_send[0] = chord_ids[i];
 		to_send[1] = chord_ids[PRECEDENT(i, nb_nodes)] + 1;
 		MPI_Send(&to_send, 2, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
-		printf("AVANT SEND: value %d, chord %d, mpi %d\n",fingerTable[0], fingerTable[1], fingerTable[2]);
 		MPI_Send(fingerTable, 3*K, MPI_INT, i+1, TAG_INIT_FINGER, MPI_COMM_WORLD);
 	}
 
