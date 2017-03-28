@@ -1,40 +1,43 @@
-# TODO: Fix Makefile :/
+CC       = mpicc
+# compiling flags here
+CFLAGS   = -Wall -Wextra -std=c99
 
-CC = mpicc 
-CFLAGS = -Wall -Wextra -std=c99
- 
-#SRC = $(wildcard *.c)
-#OBJS = $(SRC:.c=.o)
-#EXO1_PROGRAM_NAME = routage_anneau
-EXO2_PROGRAM_NAME = chord_fingertables
- 
-$(info $$OBJS are ${OBJS})
+LINKER   = mpicc
+# linking flags here
+LFLAGS   = 
 
+# change these to proper directories where each file should be
 SRCDIR   = .
 OBJDIR   = .
 BINDIR   = .
 
+EXO1_PROGRAM_NAME = routage_anneau
+EXO2_PROGRAM_NAME = chord_fingertables
+
 SOURCES  := $(wildcard $(SRCDIR)/*.c)
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+rm       = rm -f
 
-$(BINDIR)/$(TARGET): $(OBJECTS)
-	@$(CC) -o $@ $(OBJECTS)
+all: $(BINDIR)/$(EXO1_PROGRAM_NAME) $(BINDIR)/$(EXO2_PROGRAM_NAME) 
+
+$(BINDIR)/$(EXO1_PROGRAM_NAME): $(OBJDIR)/common.o $(OBJDIR)/$(EXO1_PROGRAM_NAME).o
+	$(LINKER) $(LFLAGS) -o $@ $^
+
+$(BINDIR)/$(EXO2_PROGRAM_NAME): $(OBJDIR)/common.o $(OBJDIR)/$(EXO2_PROGRAM_NAME).o
+	$(LINKER) $(LDFLAGS) -o $@ $^
+
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.c
-    @$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@
 
-all : $(EXO1_PROGRAM_NAME) $(EXO2_PROGRAM_NAME) 
- 
-#prog : $(OBJS)
-#	$(CC) $(LDFLAGS) -o $@ $^
-#%.o : %.c
-#	$(CC) $(CFLAGS) -o $@ -c $<
-
- #Usage make run ARGS=5
 run :
 	@make && mpirun -np $(ARGS) $(EXO1_PROGRAM_NAME)
 
-clean : 
-	@rm $(EXO1_PROGRAM_NAME)
-	@rm $(EXO2_PROGRAM_NAME)
-	@rm *.o
+.PHONY: clean
+clean:
+	@$(rm) $(OBJECTS)
+
+.PHONY: remove
+remove: clean
+	@$(rm) $(BINDIR)/$(EXO1_PROGRAM_NAME)
+	@$(rm) $(BINDIR)/$(EXO2_PROGRAM_NAME)
