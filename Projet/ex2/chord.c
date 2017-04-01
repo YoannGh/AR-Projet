@@ -188,7 +188,7 @@ void simulateur(int nb_nodes)
 			sscanf(input, "%c %d %d", &command, &identificator, &origin_chord_id);
 			to_send[0] = identificator;
 			mpi = find_in_array(chord_ids, nb_nodes, origin_chord_id);
-			to_send[1] = chord_ids[mpi];
+			to_send[1] = mpi+1;
 			if(mpi == -1)
 				puts("Chord ID not found");
 			else
@@ -206,12 +206,13 @@ void simulateur(int nb_nodes)
 }
 
 //Fin simulateur
-int belongDHT(int j, int curr_id, int tofind)
+//tofind appatient a ]j;id] 
+int belongDHT(int j, int id, int tofind)
 {
-	if(curr_id < j)
-		return ((tofind > j) || (tofind <= curr_id));
+	if(j < id)
+		return ((tofind > j) && (tofind <= id));
 	else
-		return ((tofind >= curr_id) || (tofind < j));
+		return((tofind > j) || (tofind <= id));
 }
 
 int checkData(const int chord_ids, const int first_data, const int to_check)
@@ -222,11 +223,37 @@ int checkData(const int chord_ids, const int first_data, const int to_check)
 		return (to_check >= first_data || to_check <= chord_ids);
 }
 
+void process_TAG_ASK(struct finger *fingerTable, int chord_id, MPI_Status status)
+{
+	int to_recv[2];
+	int foundDHT = 0;
+	MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+	for(int i = K-1; i >= 0; --i)
+	{
+		if(belongDHT(fingerTable[i].chord_id, chord_id, to_recv[0]))
+		{
+			if(fingerTable[i].chord_id == chord_id)
+				continue;
+			
+			foundDHT = 1;
+			printf("chord_ids[%d]: %d in the DHT at %d, send TAG_ASK at chord[%d]\n",chord_id, to_recv[0], i, fingerTable[i].chord_id);
+			MPI_Send(&to_recv, 2, MPI_INT, fingerTable[i].mpi_id, TAG_ASK, MPI_COMM_WORLD);
+			break;
+		}
+	}
+	if(!foundDHT)
+	{
+		printf("chord_ids[%d]: %d NOT in the DHT, send TAG_LAST_CHANCE at chord[%d]\n",chord_id, to_recv[0], fingerTable[0].chord_id);
+		MPI_Send(&to_recv, 2, MPI_INT, fingerTable[0].mpi_id, TAG_LAST_CHANCE, MPI_COMM_WORLD);
+	}
+	foundDHT = 0;
+}
+
 void node(int rank)
 {
 	struct finger fingerTable[K];
 	int buff[K*3], to_recv[2], to_send[2];
-	int run = 1, chord_id, first_data, foundDHT = 0;
+	int run = 1, chord_id, first_data;
 	MPI_Status status;
 
 	MPI_Recv(&to_recv, 2, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
@@ -248,29 +275,10 @@ void node(int rank)
 		switch(status.MPI_TAG)
 		{
 			case TAG_ASK:
-				printf("chord_ids[%d]: TAG ASK\n",chord_id);
-				MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-				for(int i = K-1; i >= 0; --i)
-				{
-					if(belongDHT(fingerTable[i].chord_id, chord_id, to_recv[0]))
-					{
-						foundDHT = 1;
-						printf("chord_ids[%d]: IN DHT AT %d, j'envoie a %d",chord_id, i, fingerTable[i].mpi_id);
-						MPI_Send(&to_recv, 2, MPI_INT, fingerTable[i].mpi_id, TAG_ASK, MPI_COMM_WORLD);
-						break;
-					}
-				}
-				if(!foundDHT)
-				{
-					printf("chord_ids[%d]: NOT IN DHT\n",chord_id);
-					MPI_Send(&to_recv, 2, MPI_INT, fingerTable[0].mpi_id, TAG_LAST_CHANCE, MPI_COMM_WORLD);
-				}
-				foundDHT = 0;
-
+				process_TAG_ASK(fingerTable, chord_id ,status);
 				break;
 
 			case TAG_LAST_CHANCE:
-				printf("chord_ids[%d]: TAG_LAST_CHANCE",chord_id);
 				MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
 				if(checkData(chord_id, first_data, to_recv[0]))
 				{
@@ -280,6 +288,7 @@ void node(int rank)
 				}
 				else
 					printf("chord_ids[%d]: requested data %d is unfound\n", chord_id, to_recv[0]);
+				break;
 
 			case TAG_ANSWER:
 				MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
@@ -294,6 +303,7 @@ void node(int rank)
 				printf("Error, tag unknown: %d\n", status.MPI_TAG);
 		}
 	}
+	printf("chord_id[%d]/mpi_rank[%d] Killed\n", chord_id, rank);
 }
 
 
@@ -314,7 +324,7 @@ int main (int argc, char* argv[]) {
       simulateur(nb_proc-1);
    else 
       node(rank);
-   
+  
    //MPI_Type_free(&MPI_finger);
    MPI_Finalize();
    return 0;
