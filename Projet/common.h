@@ -12,6 +12,8 @@ struct nodeIDs {
 };
 
 //int array_contains(const int *tab, const int tab_size, const int to_ckeck);
+int cmpint(const void *a, const void *b);
+int find_in_array(int *array, int array_size, int tofind);
 int getUniqueId(int *tab, int size);
 void printRing(struct nodeIDs *correspond);
 void generate_node_ids(int *tab, int nb_node);

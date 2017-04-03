@@ -5,6 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "common.h"
+
 #define M 64
 #define K 6
 #define TAG_INIT 0
@@ -14,8 +16,6 @@
 #define TAG_ANSWER 4
 #define TAG_STOP 5
 
-#define PRECEDENT(i, count) ((i+(count)-1)%(count))
-#define SUIVANT(i, count) ((i+(count)+1)%(count))
 
 struct finger {
 	int value;
@@ -36,73 +36,6 @@ static void mpi_register_finger()
 	MPI_Type_create_struct(3, fbcount, foffset, ftype, &MPI_finger);
 	MPI_Type_commit(&MPI_finger);
 }*/
-
-/*
-	Fonction pour quicksort sur un tableau d'entier
-*/
-static int cmpint(const void *a, const void *b)
-{
-	if(*(int*)a > *(int*)b)
-		return 1;
-	if(*(int*)a < *(int*)b)
-		return -1;
-	return 0;
-}
-
-/*
-	Vérifie si un entier to_ckeck est présent dans un tableau d'entier
-	return: 1 s'il est présent, 0 sinon
-*/
-int array_contains(const int *tab, const int tab_size, const int to_ckeck)
-{
-	for (int i = 0; i < tab_size; ++i)
-	{
-		if(tab[i] == to_ckeck)
-			return 1;
-	}
-	return 0;
-}
-
-int getUniqueId(int *tab, int size)
-{
-	int random;
-	do
-	{
-		random = rand()%M;
-	}
-	while(array_contains(tab, size, random));
-	return random;
-}
-
-
-void generate_node_ids(int *tab, int nb_nodes)
-{
-	srand(time(NULL));
-	for (int i = 0; i<nb_nodes; ++i)
-	{
-		tab[i] = getUniqueId(tab, nb_nodes);
-	}
-
-	qsort(tab, nb_nodes, sizeof(int),cmpint);
-	printf("[%d |", tab[0]);
-	for(int i = 1; i < nb_nodes-1; i++)
-	{
-		printf(" %d |", tab[i]);
-	}
-	printf(" %d]", tab[nb_nodes-1]);
-	printf("\n\n");
-}
-
-//Retourne l'indice de tofind si il exesite, -1 sinon
-int find_in_array(int *array, int array_size, int tofind)
-{
-	for(int i = 0; i < array_size; ++i)
-	{
-		if(array[i] == tofind)
-			return i;
-	}
-	return -1;
-}
 
 //Retourne le respondable de la ressource tofind parmis les chords_ids
 int chord_find_supervisor(int *chord_ids, int nb_nodes, int tofind)

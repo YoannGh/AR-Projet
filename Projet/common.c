@@ -8,7 +8,7 @@
 /*
 	Fonction pour quicksort sur un tableau d'entier
 */
-static int cmpint(const void *a, const void *b)
+int cmpint(const void *a, const void *b)
 {
 	if(*(int*)a > *(int*)b)
 		return 1;
@@ -18,18 +18,15 @@ static int cmpint(const void *a, const void *b)
 }
 
 
-/*
-	Vérifie si un entier to_ckeck est présent dans un tableau d'entier
-	return: 1 s'il est présent, 0 sinon
-*/
-static int array_contains(const int *tab, const int tab_size, const int to_check)
+//Retourne l'indice de tofind si il exsite, -1 sinon
+int find_in_array(int *array, int array_size, int tofind)
 {
-	for (int i = 0; i < tab_size; ++i)
+	for(int i = 0; i < array_size; ++i)
 	{
-		if(tab[i] == to_check)
-			return 1;
+		if(array[i] == tofind)
+			return i;
 	}
-	return 0;
+	return -1;
 }
 
 int getUniqueId(int *tab, int tab_size)
@@ -39,7 +36,7 @@ int getUniqueId(int *tab, int tab_size)
 	{
 		random = rand()%M;
 	}
-	while(array_contains(tab, tab_size, random));
+	while(find_in_array(tab, tab_size, random) != -1);
 	return random;
 }
 

@@ -12,7 +12,7 @@ OBJDIR   = .
 BINDIR   = .
 
 EXO1_PROGRAM_NAME = routage_anneau
-EXO2_PROGRAM_NAME = chord_fingertables
+EXO2_PROGRAM_NAME = chord_fingertable
 
 SOURCES  := $(wildcard $(SRCDIR)/*.c)
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
@@ -25,19 +25,18 @@ $(BINDIR)/$(EXO1_PROGRAM_NAME): $(OBJDIR)/common.o $(OBJDIR)/$(EXO1_PROGRAM_NAME
 	$(LINKER) $(LFLAGS) -o $@ $^
 
 $(BINDIR)/$(EXO2_PROGRAM_NAME): $(OBJDIR)/common.o $(OBJDIR)/$(EXO2_PROGRAM_NAME).o
-	$(LINKER) $(LDFLAGS) -o $@ $^
+	$(LINKER) $(LFLAGS) -o $@ $^
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-run :
+run1 :
 	@make && mpirun -np $(ARGS) $(EXO1_PROGRAM_NAME)
+run2 :
+	@make && mpirun -np $(ARGS) $(EXO2_PROGRAM_NAME)
 
 .PHONY: clean
 clean:
 	@$(rm) $(OBJECTS)
-
-.PHONY: remove
-remove: clean
 	@$(rm) $(BINDIR)/$(EXO1_PROGRAM_NAME)
 	@$(rm) $(BINDIR)/$(EXO2_PROGRAM_NAME)
