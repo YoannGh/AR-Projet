@@ -17,6 +17,28 @@
 #define TAG_CONNECTED_ACK 7
 #define TAG_STOP 8
 
+void display_help()
+{
+	printf("\n");
+	printf("+---------------------------------H-E-L-P----------------------------------+\n");
+	printf("|     Command     |          Fonction         |            Args            |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| s toSearch from | Search a data from a node |toSearch: Chord id to search|\n");
+	printf("|                 |                           |from: Chord id searching    |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| h               | Diplay this help          | None                       |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| d chord_id      | Disconnect a chord id     | chord_id: id to disconnect |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| c mpi_id        | Connect a mpi id          | mpi_id: id to add          |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| p               | Print the ring            | None                       |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| q               | Quit, kill everyone       | None                       |\n");
+	printf("+--------------------------------------------------------------------------+\n");
+	printf("\n");
+}
+
 /*
 	Code du simulateur (MPI ID = 0)
 */
@@ -39,7 +61,6 @@ void simulateur(int nb_node)
 	memset(correspond.chord_ids, -1, sizeof(int)*(nb_node));
 
 	generate_node_ids(correspond.chord_ids, nb_node);
-	printRing(&correspond);
 
 	for (int i = 0; i < nb_node; ++i)
 	{
@@ -51,6 +72,9 @@ void simulateur(int nb_node)
 		mpi_next = SUIVANT(i, nb_node) + 1;
 		MPI_Send(&mpi_next, 1, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
 	}
+
+	display_help();
+	printRing(&correspond);
 
 	while(1)
 	{
@@ -94,9 +118,9 @@ void simulateur(int nb_node)
 				puts("Wrong MPI_rank given (already connected or non-existing");
 		}
 		else if(input[0] == 'p')
-		{
 			printRing(&correspond);
-		}
+		else if(input[0] == 'h')
+			display_help();
 		else
 			puts("Wrong input");
 		
@@ -230,7 +254,7 @@ void node(int rank)
 	MPI_Recv(&chord_next_node, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
 	MPI_Recv(&mpi_next_node, 1, MPI_INT, 0, TAG_INIT, MPI_COMM_WORLD, &status);
 
-	printf("chord_id[%d] mpi_rank[%d] first_data: %d chord_next_node: %d mpi_next_node: %d\n", chord_id, rank, first_data, chord_next_node, mpi_next_node);
+	//printf("chord_id[%d] mpi_rank[%d] first_data: %d chord_next_node: %d mpi_next_node: %d\n", chord_id, rank, first_data, chord_next_node, mpi_next_node);
 
 	while(run)
 	{

@@ -17,7 +17,6 @@
 #define PRECEDENT(i, count) ((i+(count)-1)%(count))
 #define SUIVANT(i, count) ((i+(count)+1)%(count))
 
-
 struct finger {
 	int value;
 	int chord_id;
@@ -149,6 +148,21 @@ void display_finger_table(int *fingerTable, int K_value, int chord_id)
 	printf("+------------------------+\n\n");
 }
 
+void display_help()
+{
+	printf("\n");
+	printf("+---------------------------------H-E-L-P----------------------------------+\n");
+	printf("|     Command     |          Fonction         |            Args            |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| s toSearch from | Search a data from a node |toSearch: Chord id to search|\n");
+	printf("|                 |                           |from: Chord id searching    |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| h               | Diplay this help          | None                       |\n");
+	printf("|--------------------------------------------------------------------------|\n");
+	printf("| q               | Quit, kill everyone       | None                       |\n");
+	printf("+--------------------------------------------------------------------------+\n");
+	printf("\n");
+}
 
 void simulateur(int nb_nodes)
 {
@@ -174,6 +188,8 @@ void simulateur(int nb_nodes)
 		MPI_Send(fingerTable, 3*K, MPI_INT, i+1, TAG_INIT_FINGER, MPI_COMM_WORLD);
 	}
 
+	display_help();
+
 	while(1)
 	{
 		fgets(input, 16, stdin);
@@ -197,6 +213,8 @@ void simulateur(int nb_nodes)
 				MPI_Send(&to_send, 2, MPI_INT, (mpi+1), TAG_ASK, MPI_COMM_WORLD);
 			}
 		}
+		else if(input[0] == 'h')
+			display_help();
 		else
 			puts("Wrong input");
 		
@@ -261,7 +279,7 @@ void node(int rank)
 	first_data = to_recv[1];
 	MPI_Recv(&buff, K*3, MPI_INT, 0, TAG_INIT_FINGER, MPI_COMM_WORLD, &status);
 
-	printf("chord_ids[%d] mpi_rank[%d] first_data: %d\n", chord_id, rank, first_data);
+	//printf("chord_ids[%d] mpi_rank[%d] first_data: %d\n", chord_id, rank, first_data);
 
 	for(int i = 0; i < K; ++i)
 	{

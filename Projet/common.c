@@ -49,6 +49,7 @@ int getUniqueId(int *tab, int tab_size)
 */
 void printRing(struct nodeIDs *correspond)
 {
+	printf("Ring: ");
 	printf("[|");
 	for(int i = 0; i < correspond->nb_node; i++)
 	{
@@ -56,6 +57,7 @@ void printRing(struct nodeIDs *correspond)
 			printf(" %d |", correspond->chord_ids[i]);
 	}
 	printf("]\n");
+	printf("\n");
 }
 
 /*
