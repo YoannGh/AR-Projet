@@ -1,0 +1,37 @@
+/************************/
+/***** Compilation *****/
+/**********************/
+
+via la commande 'make'
+
+/**********************/
+/***** Execution *****/
+/********************/
+
+Pour compiler et lancer l'exercice 1:
+	make run1 ARGS=XX
+
+Pour compiler et lancer l'exercice 2:
+	make run2 ARGS=XX
+
+avec 'XX' correspondant au nombre de processus MPI 
+
+/*******************************************/
+/***** Mode automatique / interractif *****/
+/*****************************************/
+
+Deux modes sont disponibles:
+
+	- Mode 'automatique', ou une routine est lancée executant des actions prédefinies
+	separées par des sleep(), permet de tester rapidement le programme mais les test
+	ne sont pas toujours pertinents (suivant la configuration aléatoire de l'anneau)
+	Il est activé par l'appel de la fonction routine()
+	
+	- Mode 'interractif', se présentant comme une invite de commande et permettant une 
+	totale liberté dans l'execution des differentes actions. Ce mode est toutefois très
+	simpliste et ne gère que les cas très basiques d'erreur.
+	Il est activé par l'appel de la fonction prompt()
+
+Il est possible de changer de mode en modifiant la fonction simulateur().
+
+Par défault le mode 'automatique' est activé.  

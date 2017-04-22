@@ -24,7 +24,6 @@ struct finger {
 };
 
  /*
-TODO
 MPI_Datatype MPI_finger;
 
 static void mpi_register_finger()
@@ -97,32 +96,52 @@ void display_help()
 	printf("\n");
 }
 
-void simulateur(int nb_nodes)
+void routine(int nb_node)
 {
-	int mpi, identificator, origin_chord_id;
-	//Chaque entrée de la fingerTable a 3 ints
-	int *fingerTable = malloc(sizeof(int)*3*K);
-	int *chord_ids = malloc(sizeof(int)*nb_nodes);
-	char command;
 	int to_send[2];
+
+	printf("\n*** Random search from MPI 1***\n");
+	to_send[0] = 0;
+	to_send[1] = 1;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(1);
+	to_send[0] = 25;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(1);
+	to_send[0] = 44;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(1);
+	to_send[0] = 62;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(2);
+
+	printf("\n*** Random search **from MPI 2***\n");
+	to_send[0] = 0;
+	to_send[1] = 2;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(1);
+	to_send[0] = 25;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(1);
+	to_send[0] = 44;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(1);
+	to_send[0] = 62;
+	MPI_Send(&to_send, 2, MPI_INT, to_send[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(2);
+	
+	printf("\n*** Kill everyone *** \n");
+	for (int i = 1; i <= nb_node; ++i)
+		MPI_Send(&to_send, 1, MPI_INT, i, TAG_STOP, MPI_COMM_WORLD);
+}
+
+void prompt(int nb_nodes, int *chord_ids)
+{
 	char input[16];
-
-	memset(fingerTable, 0, sizeof(int)*3*K);
-
-	generate_node_ids(chord_ids, nb_nodes);
-
-	for (int i = 0; i < nb_nodes; ++i)
-	{
-		generate_finger_table(fingerTable, K ,chord_ids, nb_nodes, i);
-		display_finger_table(fingerTable, K, chord_ids[i]);
-		to_send[0] = chord_ids[i];
-		to_send[1] = chord_ids[PRECEDENT(i, nb_nodes)] + 1;
-		MPI_Send(&to_send, 2, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
-		MPI_Send(fingerTable, 3*K, MPI_INT, i+1, TAG_INIT_FINGER, MPI_COMM_WORLD);
-	}
-
+	int to_send[2], identificator, origin_chord_id, mpi;
+	char command;
+	
 	display_help();
-
 	while(1)
 	{
 		fgets(input, 16, stdin);
@@ -141,10 +160,7 @@ void simulateur(int nb_nodes)
 			if(mpi == -1)
 				puts("Chord ID not found");
 			else
-			{
-				printf("Searching node %d from %d (mpi %d)\n", to_send[0], origin_chord_id, mpi+1);
 				MPI_Send(&to_send, 2, MPI_INT, (mpi+1), TAG_ASK, MPI_COMM_WORLD);
-			}
 		}
 		else if(input[0] == 'h')
 			display_help();
@@ -152,6 +168,37 @@ void simulateur(int nb_nodes)
 			puts("Wrong input");
 		
 	}
+}
+
+void simulateur(int nb_nodes)
+{
+	int to_send[2];
+	//Chaque entrée de la fingerTable a 3 ints
+	int *fingerTable = malloc(sizeof(int)*3*K);
+	int *chord_ids = malloc(sizeof(int)*nb_nodes);
+
+	memset(fingerTable, 0, sizeof(int)*3*K);
+
+	generate_node_ids(chord_ids, nb_nodes);
+
+	for (int i = 0; i < nb_nodes; ++i)
+	{
+		generate_finger_table(fingerTable, K ,chord_ids, nb_nodes, i);
+		display_finger_table(fingerTable, K, chord_ids[i]);
+		to_send[0] = chord_ids[i];
+		to_send[1] = chord_ids[PRECEDENT(i, nb_nodes)] + 1;
+		MPI_Send(&to_send, 2, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
+		MPI_Send(fingerTable, 3*K, MPI_INT, i+1, TAG_INIT_FINGER, MPI_COMM_WORLD);
+	}
+
+	/*********
+	 * Mettre en commentaire une des deux lignes suivantes  
+	 * pour changer en mode interractif / automatique
+	 ********/
+
+	prompt(nb_nodes, chord_ids);
+	//routine(nb_nodes);
+
 	free(fingerTable);
 	free(chord_ids);
 }
@@ -179,6 +226,8 @@ void process_TAG_ASK(struct finger *fingerTable, int chord_id, MPI_Status status
 	int to_recv[2];
 	int foundDHT = 0;
 	MPI_Recv(&to_recv, 2, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+	if(status.MPI_SOURCE == 0)
+		printf("Searching node %d from %d\n", to_recv[0], chord_id);
 	for(int i = K-1; i >= 0; --i)
 	{
 		if(belongDHT(fingerTable[i].chord_id, chord_id, to_recv[0]))

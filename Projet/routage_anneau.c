@@ -39,6 +39,114 @@ void display_help()
 	printf("\n");
 }
 
+void routine(int nb_node, struct nodeIDs *correspond)
+{
+	int data[2];
+
+	data[1] = 2;
+	data[0] = 45;
+	printf("*** Random search *** \n");
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	data[0] = 10;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	data[0] = 64;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(2);
+	
+	printf("\n*** Disconnect MPI 1 *** \n");
+	MPI_Send(&data, 1, MPI_INT, 1, TAG_DISCONNECT, MPI_COMM_WORLD);
+	sleep(2);
+	
+	printf("\n*** Random search *** \n");
+	data[0] = 45;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	data[0] = 10;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	data[0] = 64;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(2);
+
+	printf("\n*** Reconnect MPI 1 *** \n");
+
+	data[0] = getUniqueId(correspond->chord_ids, nb_node);
+	data[1] = 1; 
+	printf("New chord_id[%d] mpi_rank[%d] connecting ...\n", data[0], data[1]);
+	MPI_Send(&data, 2, MPI_INT, getRandomMPIOfConnectedPeer(correspond), TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
+	sleep(2);
+
+	printf("\n*** Random search *** \n");
+	data[0] = 45;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	data[0] = 10;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	data[0] = 64;
+	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+	sleep(2);
+
+	printf("\n*** Kill everyone *** \n");
+	for (int i = 1; i <= nb_node; ++i)
+		MPI_Send(&data, 1, MPI_INT, i, TAG_STOP, MPI_COMM_WORLD);
+}
+
+void prompt(int nb_node, struct nodeIDs *correspond)
+{
+	char input[16];
+	int data[2];
+	char command;
+	int identificator, origin_chord_ids;
+
+	display_help();
+	while(1)
+	{
+		fgets(input, 16, stdin);
+		if(input[0] == 'q')
+		{
+			for (int i = 1; i <= nb_node; ++i)
+				MPI_Send(&data, 1, MPI_INT, i, TAG_STOP, MPI_COMM_WORLD);
+			break;
+		}
+		else if(input[0] == 's')
+		{
+			sscanf(input, "%c %d %d", &command, &identificator, &origin_chord_ids);
+			data[0] = identificator;
+			data[1] = chordToMpi(correspond, origin_chord_ids);
+			if(data[1] == -1)
+				puts("Chord ID not found");
+			else
+				MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
+		}
+		else if(input[0] == 'd') {
+			sscanf(input, "%c %d", &command, &identificator);
+			if( (identificator = removeChordID(correspond, identificator)) != -1)
+				MPI_Send(&data, 1, MPI_INT, identificator, TAG_DISCONNECT, MPI_COMM_WORLD);
+			else
+				puts("Chord ID not found");
+
+		}
+		else if(input[0] == 'c') 
+		{
+			sscanf(input, "%c %d", &command, &identificator);
+			data[0] = getUniqueId(correspond->chord_ids, nb_node); // Nouveau CHORD ID du nouveau pair
+			data[1] = identificator; // Le Rank MPI du pair se connectant
+
+			if(addChordID(correspond, data[1], data[0]) == 0)
+			{
+				printf("New chord_id[%d] mpi_rank[%d] connecting ...\n", data[0], data[1]);
+				MPI_Send(&data, 2, MPI_INT, getRandomMPIOfConnectedPeer(correspond), TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
+			}
+			else
+				puts("Wrong MPI_rank given (already connected or non-existing");
+		}
+		else if(input[0] == 'p')
+			printRing(correspond);
+		else if(input[0] == 'h')
+			display_help();
+		else
+			puts("Wrong input");
+		
+	}
+}
+
 /*
 	Code du simulateur (MPI ID = 0)
 */
@@ -47,11 +155,8 @@ void simulateur(int nb_node)
 {
 	/*Generation des CHORD id */
 	//int *tab = malloc(sizeof(int)*(nb_node));
-	int mpi_next, first_data, data[2];
+	int mpi_next, first_data;
 	struct nodeIDs correspond;
-	char input[16];
-	char command;
-	int identificator, origin_chord_ids;
 
 	correspond.nb_node = nb_node;
 	correspond.mpi_ids = malloc(sizeof(int)*(nb_node));
@@ -73,82 +178,15 @@ void simulateur(int nb_node)
 		MPI_Send(&mpi_next, 1, MPI_INT, i+1, TAG_INIT, MPI_COMM_WORLD);
 	}
 
-	display_help();
 	printRing(&correspond);
 
-	while(1)
-	{
-		fgets(input, 16, stdin);
-		if(input[0] == 'q')
-		{
-			for (int i = 1; i <= nb_node; ++i)
-				MPI_Send(&data, 1, MPI_INT, i, TAG_STOP, MPI_COMM_WORLD);
-			break;
-		}
-		else if(input[0] == 's')
-		{
-			sscanf(input, "%c %d %d", &command, &identificator, &origin_chord_ids);
-			data[0] = identificator;
-			data[1] = chordToMpi(&correspond, origin_chord_ids);
-			if(data[1] == -1)
-				puts("Chord ID not found");
-			else
-				MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-		}
-		else if(input[0] == 'd') {
-			sscanf(input, "%c %d", &command, &identificator);
-			if( (identificator = removeChordID(&correspond, identificator)) != -1)
-				MPI_Send(&data, 1, MPI_INT, identificator, TAG_DISCONNECT, MPI_COMM_WORLD);
-			else
-				puts("Chord ID not found");
+	/*********
+	 * Mettre en commentaire une des deux lignes suivantes  
+	 * pour changer en mode interractif / automatique
+	 ********/
 
-		}
-		else if(input[0] == 'c') 
-		{
-			sscanf(input, "%c %d", &command, &identificator);
-			data[0] = getUniqueId(correspond.chord_ids, nb_node); // Nouveau CHORD ID du nouveau pair
-			data[1] = identificator; // Le Rank MPI du pair se connectant
-
-			if(addChordID(&correspond, data[1], data[0]) == 0)
-			{
-				printf("New chord_id[%d] mpi_rank[%d] connecting ...\n", data[0], data[1]);
-				MPI_Send(&data, 2, MPI_INT, getRandomMPIOfConnectedPeer(&correspond), TAG_CONNECTED_NOTIFY_SUCCESSOR, MPI_COMM_WORLD);
-			}
-			else
-				puts("Wrong MPI_rank given (already connected or non-existing");
-		}
-		else if(input[0] == 'p')
-			printRing(&correspond);
-		else if(input[0] == 'h')
-			display_help();
-		else
-			puts("Wrong input");
-		
-	}
-	/*
-	data[1] = 2;
-	data[0] = 45;
-	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-	data[0] = 10;
-	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-	data[0] = 64;
-	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-	sleep(2);
-
-	MPI_Send(&data, 1, MPI_INT, 1, TAG_DISCONNECT, MPI_COMM_WORLD);
-
-	sleep(2);
-	data[0] = 45;
-	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-	data[0] = 10;
-	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-	data[0] = 64;
-	MPI_Send(&data, 2, MPI_INT, data[1], TAG_ASK, MPI_COMM_WORLD);
-
-	sleep(2);
-	for (int i = 1; i <= nb_node; ++i)
-		MPI_Send(&data, 1, MPI_INT, i, TAG_STOP, MPI_COMM_WORLD);
-	*/
+	//prompt(nb_node, &correspond);
+	routine(nb_node, &correspond);
 
 	free(correspond.mpi_ids);
 	free(correspond.chord_ids);
