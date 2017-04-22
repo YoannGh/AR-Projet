@@ -196,8 +196,8 @@ void simulateur(int nb_nodes)
 	 * pour changer en mode interractif / automatique
 	 ********/
 
-	prompt(nb_nodes, chord_ids);
-	//routine(nb_nodes);
+	//prompt(nb_nodes, chord_ids);
+	routine(nb_nodes);
 
 	free(fingerTable);
 	free(chord_ids);
