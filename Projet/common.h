@@ -11,7 +11,6 @@ struct nodeIDs {
 	int nb_node;
 };
 
-//int array_contains(const int *tab, const int tab_size, const int to_ckeck);
 int cmpint(const void *a, const void *b);
 int find_in_array(int *array, int array_size, int tofind);
 int getUniqueId(int *tab, int size);

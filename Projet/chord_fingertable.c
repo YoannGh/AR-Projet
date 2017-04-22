@@ -23,19 +23,6 @@ struct finger {
 	int mpi_id;
 };
 
- /*
-MPI_Datatype MPI_finger;
-
-static void mpi_register_finger()
-{
-	MPI_Aint foffset[1] = {3},
-	MPI_Datatype ftype[1] = {MPI_INT};
-	int fbcount[1] = {3},
-
-	MPI_Type_create_struct(3, fbcount, foffset, ftype, &MPI_finger);
-	MPI_Type_commit(&MPI_finger);
-}*/
-
 //Retourne le respondable de la ressource tofind parmis les chords_ids
 int chord_find_supervisor(int *chord_ids, int nb_nodes, int tofind)
 {
@@ -170,6 +157,10 @@ void prompt(int nb_nodes, int *chord_ids)
 	}
 }
 
+/*
+	Code du simulateur (MPI ID = 0)
+*/
+
 void simulateur(int nb_nodes)
 {
 	int to_send[2];
@@ -202,8 +193,9 @@ void simulateur(int nb_nodes)
 	free(fingerTable);
 	free(chord_ids);
 }
+/* FIN CODE DU SIMULATEUR */
 
-//Fin simulateur
+/* CODE DES NOEUDS */
 //tofind appatient a ]j;id] 
 int belongDHT(int j, int id, int tofind)
 {
@@ -305,7 +297,7 @@ void node(int rank)
 	}
 	printf("chord_id[%d]/mpi_rank[%d] Killed\n", chord_id, rank);
 }
-
+/* FIN CODE DES NOEUDS */
 
 int main (int argc, char* argv[]) {
 
@@ -315,7 +307,7 @@ int main (int argc, char* argv[]) {
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
    if (nb_proc < 3 || nb_proc > M) {
-      printf("Nombre de processus incorrect !\n");
+   	  printf("Le nombre de processus MPI doit être compris entre %d et %d\n", 3, M);
       MPI_Finalize();
       exit(2);
    }
@@ -325,7 +317,6 @@ int main (int argc, char* argv[]) {
    else 
       node(rank);
   
-   //MPI_Type_free(&MPI_finger);
    MPI_Finalize();
    return 0;
 }

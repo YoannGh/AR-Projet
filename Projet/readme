@@ -14,10 +14,13 @@ Pour compiler et lancer l'exercice 1:
 Pour compiler et lancer l'exercice 2:
 	make run2 ARGS=XX
 
-avec 'XX' correspondant au nombre de processus MPI 
+avec 'XX' correspondant au nombre de processus MPI,
+ce nombre doit être compris entre 3 (1 processus simulateur et 2 noeuds)
+et la valeur M définie dans common.h correspondant au nombre de donnée
+maximum du système
 
 /*******************************************/
-/***** Mode automatique / interractif *****/
+/***** Mode automatique / interactif *****/
 /*****************************************/
 
 Deux modes sont disponibles:
@@ -27,11 +30,11 @@ Deux modes sont disponibles:
 	ne sont pas toujours pertinents (suivant la configuration aléatoire de l'anneau)
 	Il est activé par l'appel de la fonction routine()
 	
-	- Mode 'interractif', se présentant comme une invite de commande et permettant une 
-	totale liberté dans l'execution des differentes actions. Ce mode est toutefois très
+	- Mode 'interactif', se présentant comme une invite de commande et permettant une 
+	totale liberté dans l'execution des différentes actions. Ce mode est toutefois très
 	simpliste et ne gère que les cas très basiques d'erreur.
 	Il est activé par l'appel de la fonction prompt()
 
 Il est possible de changer de mode en modifiant la fonction simulateur().
 
-Par défault le mode 'automatique' est activé.  
+Par défault le mode 'automatique' est activé.

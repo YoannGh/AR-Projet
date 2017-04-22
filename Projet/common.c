@@ -121,21 +121,6 @@ int addChordID(struct nodeIDs *correspond, int mpi_id, int new_chord_id)
 	return -1;
 }
 
-/* int MPInotConnected(struct nodeIDs *correspond, int mpi_ids)
-{
-	for (int i = 0; i < correspond->nb_node; ++i)
-	{
-		if(correspond->mpi_ids[i] == mpi_ids)
-		{	
-			if(correspond->chord_ids[i] == -1)
-				return 1;
-			else
-				return 0;
-		}
-	}
-	return 0;
-} */
-
 int getRandomMPIOfConnectedPeer(struct nodeIDs *correspond)
 {
 	int random;

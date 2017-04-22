@@ -365,7 +365,7 @@ int main (int argc, char* argv[]) {
    MPI_Comm_size(MPI_COMM_WORLD, &nb_proc);
 
    if (nb_proc < 3 || nb_proc > M) {
-      printf("Nombre de processus incorrect !\n");
+      printf("Le nombre de processus MPI doit être compris entre %d et %d\n", 3, M);
       MPI_Finalize();
       exit(2);
    }
